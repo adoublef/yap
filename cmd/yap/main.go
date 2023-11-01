@@ -201,31 +201,3 @@ func postYap(ctx context.Context, db *sql.DB, y *yap) (err error) {
 	_, err = db.ExecContext(ctx, qry, y.ID, y.Content, y.Region)
 	return
 }
-
-// https://stackoverflow.com/questions/68634965/csrf-token-missing-or-incorrect-displaying-dynamic-html-content-with-django-an
-// https://docs.djangoproject.com/en/3.2/ref/csrf/
-// https://github.com/spookylukey/django-htmx-patterns/blob/master/posts.rst
-
-/*
-{% csrf_token %}
-<script>
-const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-</script>
-
-
-
-<div id="container"></div>
-<input type="button" value="AJAX Load" onclick="aload();"/>
-
-<script>
-    function aload() {
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", "{% url 'chapter_pl' %}");
-        xhr.setRequestHeader("X-CSRFToken", csrftoken);
-        xhr.onload = function () {
-            document.getElementById("container").innerHTML = this.response;
-        };
-        xhr.send();
-    }
-</script>
-*/
