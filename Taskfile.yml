@@ -23,7 +23,7 @@ tasks:
       - stop
       - cache
     cmds:
-      - docker-compose up -d --build --force-recreate
+      - docker-compose --env-file .env up -d --build --force-recreate
 
   logs:
     desc: run logs

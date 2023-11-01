@@ -1,4 +1,5 @@
 version: '3.9'
+
 services:
   nginx:
     container_name: yap-nginx
@@ -19,6 +20,7 @@ services:
     privileged: true
     environment:
       - FLY_REGION=lhr
+      - HMAC_SECRET=${HMAC_SECRET}
     ports:
       - 8081:8081
     networks:
@@ -34,6 +36,7 @@ services:
     privileged: true
     environment:
       - FLY_REGION=syd
+      - HMAC_SECRET=${HMAC_SECRET}
     ports:
       - 8082:8081
     networks:
