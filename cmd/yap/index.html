@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yap</title>
-    <link rel="stylesheet" href={{static "styles.css"}}>
+    <link rel="stylesheet" href="{{static "styles.css"}}">
 </head>
 
 <body>
@@ -17,7 +17,7 @@
         <section>
             <form action="/" method="post">
                 <input type="hidden" name="_xsrf" value="{{.Xsrf}}">
-                <!-- hidden region -->
+                <input type="hidden" name="region" value="{{env "FLY_REGION"}}">
                 <textarea name="content" id="content" cols="30" rows="3"></textarea>
                 <button type="submit">Yap</button>
             </form>

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/benbjohnson/hashfs"
@@ -84,17 +85,21 @@ func parseContent(s string) (content, error) {
 	return content(s), nil
 }
 
+// region must be either 'lhr', 'syd' or 'iad' in correspondence to the deployed regions
 type region string
 
 func parseRegion(s string) (region, error) {
 	// lhr, syd & iad
+	if ok := slices.Contains([]string{"lhr", "syd", "iad"}, s); !ok {
+		return "", errors.New("region: invalid region")
+	}
 	return region(s), nil
 }
 
 type yap struct {
 	ID      xid.ID
 	Content content
-	Region  string
+	Region  region
 }
 
 // http
@@ -132,8 +137,6 @@ func handleIndex(t *template.Template, db *sql.DB) http.HandlerFunc {
 }
 
 func handlePostYap(db *sql.DB) http.HandlerFunc {
-	var region = os.Getenv("FLY_REGION")
-
 	var session = func(w http.ResponseWriter, r *http.Request) string {
 		c, err := r.Cookie("site-session")
 		if err != nil {
@@ -142,26 +145,33 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 		return c.Value
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		var (
-			content = r.PostFormValue("content")
-			tok     = r.PostFormValue("_xsrf")
-		)
+	var parseYap = func(r *http.Request) (*yap, error) {
+		c, err := parseContent(r.PostFormValue("content"))
+		if err != nil {
+			return nil, err
+		}
 
-		// validate token
-		if ok := xsrf.Valid(tok, hmacSecret, session(w, r), ""); !ok {
+		reg, err := parseRegion(r.PostFormValue("region"))
+		if err != nil {
+			return nil, err
+		}
+
+		return &yap{xid.New(), c, reg}, nil
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ok := xsrf.Valid(r.PostFormValue("_xsrf"), hmacSecret, session(w, r), ""); !ok {
 			http.Error(w, "Request has been tampered", http.StatusUnauthorized)
 			return
 		}
 
-		c, err := parseContent(content)
+		y, err := parseYap(r)
 		if err != nil {
-			// return with error page
 			http.Error(w, "Error with user input", http.StatusBadRequest)
 			return
 		}
 
-		err = postYap(r.Context(), db, &yap{xid.New(), c, region})
+		err = postYap(r.Context(), db, y)
 		if err != nil {
 			http.Error(w, "Database found an issue", http.StatusInternalServerError)
 			return
