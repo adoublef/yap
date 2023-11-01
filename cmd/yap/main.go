@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -12,11 +13,14 @@ import (
 
 	"github.com/benbjohnson/hashfs"
 	"github.com/go-chi/chi/v5"
+	"github.com/gofrs/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/xid"
+	xsrf "golang.org/x/net/xsrftoken"
 )
 
 var addr = ":" + os.Getenv("PORT")
+var hmacSecret = os.Getenv("HMAC_SECRET")
 
 //go:embed all:*.css
 var assetsFS embed.FS
@@ -73,7 +77,18 @@ func run(ctx context.Context) (err error) {
 type content string
 
 func parseContent(s string) (content, error) {
+	if ok := len(s) <= 240; !ok {
+		return content(""), errors.New("content: value too long")
+	}
+	// NOTE other parsing can be handled here
 	return content(s), nil
+}
+
+type region string
+
+func parseRegion(s string) (region, error) {
+	// lhr, syd & iad
+	return region(s), nil
 }
 
 type yap struct {
@@ -82,16 +97,33 @@ type yap struct {
 	Region  string
 }
 
-// http server
+// http
 func handleIndex(t *template.Template, db *sql.DB) http.HandlerFunc {
+	var session = func(w http.ResponseWriter, r *http.Request) string {
+		// create a session cookie
+		c := http.Cookie{
+			Name:     "site-session",
+			Value:    uuid.Must(uuid.NewGen().NewV7()).String(),
+			Path:     "/",
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		}
+		http.SetCookie(w, &c)
+		return c.Value
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
+		// if no session_id create one
+		tok := xsrf.Generate(hmacSecret, session(w, r), "")
+
 		yy, err := listYaps(r.Context(), db)
 		if err != nil {
 			http.Error(w, "Failed to ping database", http.StatusInternalServerError)
 			return
 		}
 
-		err = t.ExecuteTemplate(w, "index.html", yy)
+		err = t.ExecuteTemplate(w, "index.html", map[string]any{"Yaps": yy, "Xsrf": tok})
 		if err != nil {
 			http.Error(w, "Failed to render view", http.StatusInternalServerError)
 			return
@@ -100,18 +132,36 @@ func handleIndex(t *template.Template, db *sql.DB) http.HandlerFunc {
 }
 
 func handlePostYap(db *sql.DB) http.HandlerFunc {
-	var (
-		region = os.Getenv("FLY_REGION")
-	)
+	var region = os.Getenv("FLY_REGION")
+
+	var session = func(w http.ResponseWriter, r *http.Request) string {
+		c, err := r.Cookie("site-session")
+		if err != nil {
+			return ""
+		}
+		return c.Value
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		content, err := parseContent(r.PostFormValue("content"))
+		var (
+			content = r.PostFormValue("content")
+			tok     = r.PostFormValue("_xsrf")
+		)
+
+		// validate token
+		if ok := xsrf.Valid(tok, hmacSecret, session(w, r), ""); !ok {
+			http.Error(w, "Request has been tampered", http.StatusUnauthorized)
+			return
+		}
+
+		c, err := parseContent(content)
 		if err != nil {
 			// return with error page
 			http.Error(w, "Error with user input", http.StatusBadRequest)
 			return
 		}
 
-		err = postYap(r.Context(), db, &yap{xid.New(), content, region})
+		err = postYap(r.Context(), db, &yap{xid.New(), c, region})
 		if err != nil {
 			http.Error(w, "Database found an issue", http.StatusInternalServerError)
 			return
@@ -151,3 +201,31 @@ func postYap(ctx context.Context, db *sql.DB, y *yap) (err error) {
 	_, err = db.ExecContext(ctx, qry, y.ID, y.Content, y.Region)
 	return
 }
+
+// https://stackoverflow.com/questions/68634965/csrf-token-missing-or-incorrect-displaying-dynamic-html-content-with-django-an
+// https://docs.djangoproject.com/en/3.2/ref/csrf/
+// https://github.com/spookylukey/django-htmx-patterns/blob/master/posts.rst
+
+/*
+{% csrf_token %}
+<script>
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+</script>
+
+
+
+<div id="container"></div>
+<input type="button" value="AJAX Load" onclick="aload();"/>
+
+<script>
+    function aload() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "{% url 'chapter_pl' %}");
+        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        xhr.onload = function () {
+            document.getElementById("container").innerHTML = this.response;
+        };
+        xhr.send();
+    }
+</script>
+*/
