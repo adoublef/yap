@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yap</title>
+    <link rel="stylesheet" href={{static "styles.css"}}>
+</head>
+
+<body>
+    <main>
+        <header>
+            <h1>Yap 🐨</h1>
+            <h2>REGION {{env "FLY_REGION"}}</h2>
+        </header>
+        <section>
+            <form action="/" method="post">
+                <textarea name="content" id="content" cols="30" rows="3"></textarea>
+                <!-- hidden region -->
+                <button type="submit">Yap</button>
+            </form>
+        </section>
+        <section>
+            <h2>Total number of yaps = {{len .}}</h2>
+            <ul>
+                {{range $key, $value := .}}
+                <li>
+                    {{ $key }}: {{ $value }}
+                </li>
+                {{end}}
+            </ul>
+        </section>
+    </main>
+</body>
+
+</html>

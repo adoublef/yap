@@ -1,0 +1,16 @@
+fuse:
+  dir: "${LITEFS_DIR}"
+
+data:
+  dir: "/data/litefs"
+
+lease:
+  type: "static"
+  advertise-url: "http://primary:20202"
+  candidate: ${FLY_REGION == 'lhr'}
+
+exec:
+  - cmd: ./b
+    if-candidate: true
+
+  - cmd: ./a

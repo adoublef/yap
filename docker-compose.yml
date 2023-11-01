@@ -1,0 +1,44 @@
+version: '3.9'
+services:
+  nginx:
+    container_name: yap-nginx
+    build:
+      context: ./nginx
+    ports:
+      - 8080:80
+    networks:
+      - yap-network
+  
+  primary:
+    container_name: yap-primary
+    build:
+      context: .
+      target: runtime
+      args:
+        - LITEFS_CONFIG=litefs.nginx.yml
+    privileged: true
+    environment:
+      - FLY_REGION=lhr
+    ports:
+      - 8081:8081
+    networks:
+      - yap-network
+
+  replica:
+    container_name: yap-replica
+    build:
+      context: .
+      target: runtime
+      args:
+        - LITEFS_CONFIG=litefs.nginx.yml
+    privileged: true
+    environment:
+      - FLY_REGION=syd
+    ports:
+      - 8082:8081
+    networks:
+      - yap-network
+
+networks:
+  yap-network:
+
