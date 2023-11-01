@@ -146,8 +146,8 @@ func listYaps(ctx context.Context, db *sql.DB) ([]*yap, error) {
 
 func postYap(ctx context.Context, db *sql.DB, y *yap) (err error) {
 	var (
-		qry = "INSERT INTO yaps (id, content) VALUES (?, ?)"
+		qry = "INSERT INTO yaps (id, content, region) VALUES (?, ?, ?)"
 	)
-	_, err = db.ExecContext(ctx, qry, y.ID, y.Content)
+	_, err = db.ExecContext(ctx, qry, y.ID, y.Content, y.Region)
 	return
 }
