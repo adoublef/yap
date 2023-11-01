@@ -66,7 +66,7 @@ func run(ctx context.Context) (err error) {
 	mux := chi.NewMux()
 	mux.Get("/", handleIndex(t, db))
 	mux.Post("/", handlePostYap(db))
-	// TODO up/down vote yaps
+	mux.Post("/{yap}/vote/{vote}", handleVote(db))
 	// TODO comment on a yap
 	// TODO share a yap with a shortened URL
 	// TODO about
@@ -96,16 +96,16 @@ func parseRegion(s string) (region, error) {
 	return region(s), nil
 }
 
-type yap struct {
+type Yap struct {
 	ID      xid.ID
 	Content content
 	Region  region
+	Score   int
 }
 
 // http
 func handleIndex(t *template.Template, db *sql.DB) http.HandlerFunc {
 	var session = func(w http.ResponseWriter, r *http.Request) string {
-		// create a session cookie
 		c := http.Cookie{
 			Name:     "site-session",
 			Value:    uuid.Must(uuid.NewGen().NewV7()).String(),
@@ -119,7 +119,6 @@ func handleIndex(t *template.Template, db *sql.DB) http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		// if no session_id create one
 		tok := xsrf.Generate(hmacSecret, session(w, r), "")
 
 		yy, err := listYaps(r.Context(), db)
@@ -145,7 +144,7 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 		return c.Value
 	}
 
-	var parseYap = func(r *http.Request) (*yap, error) {
+	var parse = func(r *http.Request) (*Yap, error) {
 		c, err := parseContent(r.PostFormValue("content"))
 		if err != nil {
 			return nil, err
@@ -156,7 +155,7 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 			return nil, err
 		}
 
-		return &yap{xid.New(), c, reg}, nil
+		return &Yap{xid.New(), c, reg, 0}, nil
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +164,7 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		y, err := parseYap(r)
+		y, err := parse(r)
 		if err != nil {
 			http.Error(w, "Error with user input", http.StatusBadRequest)
 			return
@@ -177,14 +176,61 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		http.Redirect(w, r, r.Referer(), http.StatusSeeOther)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+}
+
+func handleVote(db *sql.DB) http.HandlerFunc {
+	var parse = func(r *http.Request) (yap xid.ID, upvote bool, err error) {
+		yap, err = xid.FromString(chi.URLParam(r, "yap"))
+		if err != nil {
+			return xid.NilID(), false, err
+		}
+		vote := chi.URLParam(r, "vote")
+		if ok := slices.Contains([]string{"up", "down"}, vote); !ok {
+			return xid.NilID(), false, errors.New("parse: invalid vote option")
+		}
+		upvote = vote == "up"
+		return
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		yid, upvote, err := parse(r)
+		if err != nil {
+			http.Error(w, "Error with voting", http.StatusBadRequest)
+			return
+		}
+
+		err = makeVote(r.Context(), db, yid, upvote)
+		if err != nil {
+			http.Error(w, "Database found an issue", http.StatusInternalServerError)
+			return
+		}
+
+		// send htmx back with updated score value?
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
 // database
-func listYaps(ctx context.Context, db *sql.DB) ([]*yap, error) {
+func listYaps(ctx context.Context, db *sql.DB) ([]*Yap, error) {
 	var (
-		qry = "SELECT y.id, y.content, y.region FROM yaps AS y"
+		qry = `
+		SELECT
+			y.id,
+			y.content,
+			y.region,
+			SUM(CASE
+				WHEN v.score = 0 THEN -1 
+				WHEN v.score = 1 THEN 1
+				ELSE 0 
+			END) AS score
+		FROM
+			yaps AS y
+		LEFT JOIN
+			votes AS v ON y.id = v.yap
+		GROUP BY
+			y.id, y.content
+		`
 	)
 	rs, err := db.QueryContext(ctx, qry)
 	if err != nil {
@@ -192,10 +238,10 @@ func listYaps(ctx context.Context, db *sql.DB) ([]*yap, error) {
 	}
 	defer rs.Close()
 
-	var vv []*yap
+	var vv []*Yap
 	for rs.Next() {
-		var v yap
-		err = rs.Scan(&v.ID, &v.Content, &v.Region)
+		var v Yap
+		err = rs.Scan(&v.ID, &v.Content, &v.Region, &v.Score)
 		if err != nil {
 			return nil, err
 		}
@@ -204,10 +250,43 @@ func listYaps(ctx context.Context, db *sql.DB) ([]*yap, error) {
 	return vv, rs.Err()
 }
 
-func postYap(ctx context.Context, db *sql.DB, y *yap) (err error) {
+func postYap(ctx context.Context, db *sql.DB, y *Yap) (err error) {
 	var (
-		qry = "INSERT INTO yaps (id, content, region) VALUES (?, ?, ?)"
+		qry = `
+		INSERT INTO yaps (id, content, region)
+		VALUES (?, ?, ?)
+		`
 	)
 	_, err = db.ExecContext(ctx, qry, y.ID, y.Content, y.Region)
+	return
+}
+
+func makeVote(ctx context.Context, db *sql.DB, yap xid.ID, upvote bool) (err error) {
+	var (
+		qry = `
+		INSERT INTO votes (yap, score)
+		VALUES (?, ?)
+		`
+	)
+	_, err = db.ExecContext(ctx, qry, yap, upvote)
+	return
+}
+
+func currentScore(ctx context.Context, db *sql.DB, yap xid.ID) (n int, err error) {
+	var (
+		qry = `
+		SELECT 
+			SUM(CASE
+				WHEN v.score = 0 THEN -1 
+				WHEN v.score = 1 THEN 1
+				ELSE 0 
+			END) AS score
+		FROM
+			votes AS v
+		WHERE
+			v.yap = ?
+		`
+	)
+	err = db.QueryRowContext(ctx, qry).Scan(&n)
 	return
 }
