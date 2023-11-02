@@ -30,7 +30,7 @@
             <ul>
                 {{range $y := .Yaps}}
                 <li>
-                    <articleg>
+                    <article>
                         <p>{{.Content}}</p>
                         <form action="{{.ID}}/vote/down" method="post">
                             <!-- NOTE unsure xsrf needed for all POST requests -->
@@ -39,7 +39,7 @@
                             <output>{{.Score}}</output>
                             <button type="submit">down</button>
                         </form>
-                    </articleg>
+                    </article>
                 </li>
                 {{end}}
             </ul>
