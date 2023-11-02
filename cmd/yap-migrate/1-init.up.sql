@@ -9,7 +9,6 @@ CREATE TABLE yaps (
     PRIMARY KEY (id)
 );
 
-/* yaps upvotes, downvotes, json events */
 CREATE TABLE votes (
     /* https://stackoverflow.com/questions/7905859/is-there-auto-increment-in-sqlite */
     'id' INT,
