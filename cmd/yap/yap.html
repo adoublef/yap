@@ -1,0 +1,31 @@
+{{$xsrf := .Xsrf}}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yap: truncated content</title>
+</head>
+
+<body>
+    <main>
+        {{with .Yap}}
+        <article>
+            <p>{{.Content}}</p>
+            <form action="yap/{{.ID}}/vote/down" method="post">
+                <input type="hidden" name="_xsrf" value="{{$xsrf}}">
+                <button type="submit" formaction="yap/{{.ID}}/vote/up">upvote</button>
+                <output>{{.Score}}</output>
+                <button type="submit">down</button>
+            </form>
+        </article>
+        {{end}}
+        <section>
+            <!-- make a comment -->
+        </section>
+    </main>
+</body>
+
+</html>

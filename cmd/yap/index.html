@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yap</title>
-    <link rel="stylesheet" href='{{static "styles.css"}}'>
+    <link rel="stylesheet" href='{{static "assets/styles.css"}}'>
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
 </head>
 
@@ -33,10 +33,9 @@
                     <!-- for htmx to swap i may need to include the 'id' on the article -->
                     <article>
                         <p>{{.Content}}</p>
-                        <form action="{{.ID}}/vote/down" method="post">
-                            <!-- NOTE unsure xsrf needed for all POST requests -->
+                        <form action="yap/{{.ID}}/vote/down" method="post">
                             <input type="hidden" name="_xsrf" value="{{$xsrf}}">
-                            <button type="submit" formaction="{{.ID}}/vote/up">upvote</button>
+                            <button type="submit" formaction="yap/{{.ID}}/vote/up">upvote</button>
                             <output>{{.Score}}</output>
                             <button type="submit">down</button>
                         </form>
