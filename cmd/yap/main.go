@@ -23,7 +23,7 @@ import (
 var addr = ":" + os.Getenv("PORT")
 var hmacSecret = os.Getenv("HMAC_SECRET")
 
-//go:embed all:*.css
+//go:embed all:*.css all:*.ico
 var assetsFS embed.FS
 var hashFS = hashfs.NewFS(assetsFS)
 

@@ -28,8 +28,9 @@
         <section>
             <h2>Total number of yaps = {{len .Yaps}}</h2>
             <ul>
-                {{range $y := .Yaps}}
+                {{range .Yaps}}
                 <li>
+                    <!-- for htmx to swap i may need to include the 'id' on the article -->
                     <article>
                         <p>{{.Content}}</p>
                         <form action="{{.ID}}/vote/down" method="post">
