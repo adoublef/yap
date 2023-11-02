@@ -11,6 +11,7 @@ import (
 	"github.com/adoublef/yap"
 	"github.com/go-chi/chi/v5"
 	"github.com/gofrs/uuid"
+	"github.com/nats-io/nats.go"
 	"github.com/rs/xid"
 	xsrf "golang.org/x/net/xsrftoken"
 )
@@ -22,6 +23,7 @@ var _ http.Handler = (*Service)(nil)
 type Service struct {
 	m  *chi.Mux
 	db *sql.DB
+	nc *nats.Conn
 	t  *template.Template
 }
 
@@ -30,32 +32,22 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.m.ServeHTTP(w, r)
 }
 
-func New(
-	db *sql.DB,
-	t *template.Template,
-) *Service {
+func New(t *template.Template, db *sql.DB, nc *nats.Conn) *Service {
 	s := Service{
 		m:  chi.NewMux(),
 		db: db,
+		nc: nc,
 		t:  t,
 	}
 	s.routes()
 	return &s
 }
 
-/*
-GET /
-POST /
-GET /y/:id
-
-
-*/
-
 func (s *Service) routes() {
 	s.m.Get("/", s.handleIndex())
 	s.m.Post("/", s.handlePostYap())
-	s.m.Post("/y/{yap}", s.handleViewYap())
-	s.m.Post("/y/{yap}/v/{vote}", s.handleVote())
+	s.m.Post("/{yap}", s.handleViewYap())
+	s.m.Post("/{yap}/v/{vote}", s.handleVote())
 	// TODO comment on a yap
 	// TODO share a yap with a shortened URL
 	// TODO about
