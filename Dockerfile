@@ -28,7 +28,7 @@ ENV PORT=8081
 
 # copy binary from build
 COPY --from=build /usr/bin/yap ./a
-COPY --from=build /usr/bin/yap-migrate ./b
+COPY --from=build /usr/bin/sqlite3 ./b
 
 # install sqlite, ca-certificates, curl and fuse for litefs
 RUN apk add --no-cache fuse3 sqlite ca-certificates
