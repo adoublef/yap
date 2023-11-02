@@ -11,7 +11,6 @@ import (
 	"github.com/adoublef/yap"
 	"github.com/go-chi/chi/v5"
 	"github.com/gofrs/uuid"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/xid"
 	xsrf "golang.org/x/net/xsrftoken"
 )
@@ -44,11 +43,19 @@ func New(
 	return &s
 }
 
+/*
+GET /
+POST /
+GET /y/:id
+
+
+*/
+
 func (s *Service) routes() {
 	s.m.Get("/", s.handleIndex())
 	s.m.Post("/", s.handlePostYap())
-	s.m.Post("/yap/{yap}", s.handleViewYap())
-	s.m.Post("/yap/{yap}/vote/{vote}", s.handleVote())
+	s.m.Post("/y/{yap}", s.handleViewYap())
+	s.m.Post("/y/{yap}/v/{vote}", s.handleVote())
 	// TODO comment on a yap
 	// TODO share a yap with a shortened URL
 	// TODO about
@@ -64,6 +71,7 @@ func (s *Service) handleIndex() http.HandlerFunc {
 			return
 		}
 
+		// TODO should map the db data into a struct response with links
 		s.respond(w, r, "index.html", map[string]any{"Yaps": yy, "Xsrf": tok})
 	}
 }
