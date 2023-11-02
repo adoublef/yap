@@ -143,7 +143,6 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 		}
 		return c.Value
 	}
-
 	var parse = func(r *http.Request) (*Yap, error) {
 		c, err := parseContent(r.PostFormValue("content"))
 		if err != nil {
@@ -157,7 +156,6 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 
 		return &Yap{xid.New(), c, reg, 0}, nil
 	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ok := xsrf.Valid(r.PostFormValue("_xsrf"), hmacSecret, session(w, r), ""); !ok {
 			http.Error(w, "Request has been tampered", http.StatusUnauthorized)
@@ -181,6 +179,13 @@ func handlePostYap(db *sql.DB) http.HandlerFunc {
 }
 
 func handleVote(db *sql.DB) http.HandlerFunc {
+	var session = func(w http.ResponseWriter, r *http.Request) string {
+		c, err := r.Cookie("site-session")
+		if err != nil {
+			return ""
+		}
+		return c.Value
+	}
 	var parse = func(r *http.Request) (yap xid.ID, upvote bool, err error) {
 		yap, err = xid.FromString(chi.URLParam(r, "yap"))
 		if err != nil {
@@ -194,6 +199,11 @@ func handleVote(db *sql.DB) http.HandlerFunc {
 		return
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
+		if ok := xsrf.Valid(r.PostFormValue("_xsrf"), hmacSecret, session(w, r), ""); !ok {
+			http.Error(w, "Request has been tampered", http.StatusUnauthorized)
+			return
+		}
+
 		yid, upvote, err := parse(r)
 		if err != nil {
 			http.Error(w, "Error with voting", http.StatusBadRequest)

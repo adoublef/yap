@@ -1,3 +1,5 @@
+{{$xsrf := .Xsrf}}
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -17,7 +19,7 @@
         </header>
         <section>
             <form action="/" method="post">
-                <input type="hidden" name="_xsrf" value="{{.Xsrf}}">
+                <input type="hidden" name="_xsrf" value="{{$xsrf}}">
                 <input type="hidden" name="region" value='{{env "FLY_REGION"}}'>
                 <textarea name="content" id="content" cols="30" rows="3"></textarea>
                 <button type="submit">Yap</button>
@@ -26,16 +28,18 @@
         <section>
             <h2>Total number of yaps = {{len .Yaps}}</h2>
             <ul>
-                {{range .Yaps}}
+                {{range $y := .Yaps}}
                 <li>
-                    <article>
+                    <articleg>
                         <p>{{.Content}}</p>
                         <form action="{{.ID}}/vote/down" method="post">
+                            <!-- NOTE unsure xsrf needed for all POST requests -->
+                            <input type="hidden" name="_xsrf" value="{{$xsrf}}">
                             <button type="submit" formaction="{{.ID}}/vote/up">upvote</button>
                             <output>{{.Score}}</output>
                             <button type="submit">down</button>
                         </form>
-                    </article>
+                    </articleg>
                 </li>
                 {{end}}
             </ul>
