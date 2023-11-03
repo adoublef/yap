@@ -10,14 +10,6 @@
 - [Contributors](#contributors)
 - [Contact](#contact)
 
-<!-- ## Project Link -->
-
-<!-- View the live application via the following link:
-<https://family-vault-2ab24d70e0a3.herokuapp.com/login> -->
-<!-- <br> -->
-<!-- *add link* -->
-<!-- <https://github.com/ChristianAlteri/Family-Vault/assets/120008055/4b1eb710-3321-4f9e-9a3f-2572f75df618> -->
-
 ### Project Repository
 
 <https://github.com/adoublef/yap>
