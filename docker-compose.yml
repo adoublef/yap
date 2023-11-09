@@ -23,6 +23,7 @@ services:
       - HMAC_SECRET=${HMAC_SECRET}
     ports:
       - 8081:8081
+      - 8222:8222
     networks:
       - yap-network
 

@@ -13,4 +13,4 @@ exec:
   - cmd: ./b
     if-candidate: true
 
-  - cmd: ./a
+  - cmd: ./a -addr=:${PORT} -cluster=nats-route://primary:4248
