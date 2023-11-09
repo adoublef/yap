@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 
-# should i be using an alpine image to build
-FROM golang:1.21 AS build
+ARG GO_VERSION=1.21
+ARG ALPINE_VERSION=3.18
+
+FROM golang:${GO_VERSION} AS build
 
 WORKDIR /usr/src
 
@@ -16,7 +18,7 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
     -tags osusergo,netgo \
     -o /usr/bin/ ./...
 
-FROM alpine AS runtime
+FROM alpine:${ALPINE_VERSION} AS runtime
 
 WORKDIR /opt
 

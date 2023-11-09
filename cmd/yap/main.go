@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -23,8 +24,6 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-var addr = ":" + os.Getenv("PORT")
-
 //go:embed all:*.html
 var tmplFS embed.FS
 
@@ -35,6 +34,9 @@ var fmap = template.FuncMap{
 }
 
 var (
+	addr    = flag.String("addr", ":8080", "bind listen addr")
+	cluster = flag.String("cluster", "nats-route://0.0.0.0:4248", "bind cluster routes")
+
 	args = strings.Join([]string{"_journal=wal", "_timeout=5000", "_synchronous=normal", "_fk=true"}, "&")
 	dsn  = os.Getenv("DATABASE_URL")
 )
@@ -50,6 +52,9 @@ func main() {
 		cancel()
 	}()
 
+	// parse into options to pass into run command
+	flag.Parse()
+
 	if err := run(ctx); err != nil {
 		log.Printf("yap: %v\n", err)
 		os.Exit(1)
@@ -58,7 +63,19 @@ func main() {
 
 func run(ctx context.Context) (err error) {
 	// start nats server
-	ns, err := server.NewServer(&server.Options{})
+	// NOTE can pass config file
+	ns, err := server.NewServer(&server.Options{
+		Port:     4222,
+		HTTPPort: 8222,
+		Cluster: server.ClusterOpts{
+			Name: "NATS",
+			Port: 4248,
+			// Username: "",
+			// Password: "",
+		},
+		Routes:    server.RoutesFromStr(*cluster),
+		RoutesStr: *cluster,
+	})
 	if err != nil {
 		return err
 	}
@@ -71,7 +88,9 @@ func run(ctx context.Context) (err error) {
 		return err
 	}
 	defer nc.Close()
-
+	{
+		// nats cluster check
+	}
 	db, err := sql.Open("sqlite3", dsn+"?"+args)
 	if err != nil {
 		return err
@@ -90,12 +109,14 @@ func run(ctx context.Context) (err error) {
 	mux.Handle("/assets/*", http.StripPrefix("/assets/", static.Handler))
 
 	s := &http.Server{
-		Addr:    addr,
+		Addr:    *addr,
 		Handler: mux,
 		BaseContext: func(l net.Listener) context.Context {
 			return ctx
 		},
 	}
+	// I want to close the nats server port
+	s.RegisterOnShutdown(func() { ns.Shutdown() })
 
 	sErr := make(chan error)
 	go func() {
