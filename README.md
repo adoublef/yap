@@ -10,6 +10,8 @@
 - [Contributors](#contributors)
 - [Contact](#contact)
 
+<!-- ## Project Link -->
+
 ### Project Repository
 
 <https://github.com/adoublef/yap>
